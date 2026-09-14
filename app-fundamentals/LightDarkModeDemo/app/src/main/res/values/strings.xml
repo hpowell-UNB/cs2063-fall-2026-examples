@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">LightDarkModeDemo</string>
+    <string name="lbl_night_mode">Night Mode</string>
+</resources>
