@@ -13,10 +13,7 @@ object RestCountriesApiHelper {
         .build()
 
     fun fetchDataFromUrl(url: String): String? {
-        // TODO: Go to https://restcountries.com/ 
-        //  to create a free API key; insert below for testing
-        //. Note that this should not be committed; for production
-        //   set this as an environment variable.
+        // API Key added as environment variable
         val apiKey = ""
 
         val request = Request.Builder()

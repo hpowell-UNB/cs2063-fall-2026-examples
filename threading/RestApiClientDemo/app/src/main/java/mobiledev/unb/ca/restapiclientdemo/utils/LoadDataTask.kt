@@ -4,7 +4,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import mobiledev.unb.ca.restapiclientdemo.MyAdapter
+import mobiledev.unb.ca.restapiclientdemo.CountryListAdapter
 import mobiledev.unb.ca.restapiclientdemo.models.CountryItem
 
 class LoadDataTask {
@@ -27,7 +27,13 @@ class LoadDataTask {
     }
 
     private fun updateDisplay(countryItemList: List<CountryItem>) {
-        val adapter = MyAdapter(countryItemList)
-        recyclerView.adapter = adapter
+        // Set up the adapter for use in the RecyclerView
+        val countryListAdapter = CountryListAdapter()
+        recyclerView.apply {
+            adapter = countryListAdapter
+        }
+
+        // Push the country list into countryListAdapter using submitList()
+        countryListAdapter.submitList(countryItemList)
     }
 }
