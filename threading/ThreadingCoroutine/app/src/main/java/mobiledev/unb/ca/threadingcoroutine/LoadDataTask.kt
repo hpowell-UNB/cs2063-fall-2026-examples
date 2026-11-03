@@ -43,32 +43,6 @@ class LoadIconTask(private val appContext: Context) {
 
                 updateDisplay(bitmap)
             }
-
-            // What happens if we run tasks in parallel?
-//            launch(Dispatchers.Main) {
-//                // Show the progress bar
-//                progressBar?.visibility = ProgressBar.VISIBLE
-//
-//                // Simulating long-running operation
-//                for (i in 0..DOWNLOAD_TIME) {
-//                    sleep()
-//                    progressBar?.progress = i * 10
-//                }
-//            }
-//
-//            launch(Dispatchers.Main) {
-//                updateDisplay(bitmap)
-//            }
-        }
-    }
-
-    fun executeAlternate() {
-        MainScope().launch(Dispatchers.Main) {
-            // Show the progress bar
-            progressBar?.visibility = ProgressBar.VISIBLE
-
-            val bitmap = doLoadBitmap(appContext, progressBar)
-            updateDisplay(bitmap)
         }
     }
 
