@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Motion Event Demo</string>
+    <string name="action_details">Action: %1$s, X: %2$f, Y: %3$f</string>
+    <string name="action_outside">Movement occurred outside bounds of current screen element</string>
+</resources>
