@@ -1,6 +1,7 @@
-package mobiledev.unb.ca.locationdemo
+package mobiledev.unb.ca.locationproviderdemo
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -13,22 +14,28 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.gms.location.CurrentLocationRequest
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var locationTextView: TextView
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    // Lazy initialize the ViewModel using standard ktx extensions
-    private val viewModel: LocationViewModel by viewModels()
+    // Having a cancellation token allows the system to abort getCurrentLocation
+    // if the Coroutine scope cancels
+    private var cancellationTokenSource: CancellationTokenSource? = null
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -40,7 +47,7 @@ class MainActivity : AppCompatActivity() {
                 checkLocationSettingsAndFetch()
             } else {
                 Log.w(TAG, "Permission denied")
-                showToast("Location permissions are required to use this feature.")
+                showToast(getString(R.string.permission_denied))
             }
         }
 
@@ -56,19 +63,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         locationTextView = findViewById(R.id.location_text_view)
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         val locationButton: Button = findViewById(R.id.location_button)
         locationButton.setOnClickListener {
             handleLocationFlow()
-        }
-
-        // Collect UI state safely matching the lifecycle of the activity
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.uiState.collect { state ->
-                    renderUiState(state)
-                }
-            }
         }
     }
 
@@ -92,7 +91,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkLocationSettingsAndFetch() {
         if (isLocationEnabled()) {
-            viewModel.fetchLocationSequence()
+            // Launch a coroutine bounded to the Activity lifecycle
+            lifecycleScope.launch {
+                fetchLocationSequence()
+            }
         } else {
             showToast("Please turn location services on")
             val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
@@ -106,35 +108,82 @@ class MainActivity : AppCompatActivity() {
                 locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
-    private fun renderUiState(state: LocationUiState) {
-        when (state) {
-            is LocationUiState.Idle -> {
-                locationTextView.text = "Tap the button to get location details."
+    // Main Coroutine Execution sequence
+    @SuppressLint("MissingPermission")
+    private suspend fun fetchLocationSequence() {
+        if (!hasLocationPermissions()) {
+            return
+        }
+
+        try {
+            // Fetch the cached last known location instantly
+            val cachedLocation = fusedLocationClient.lastLocation.await()
+
+            if (cachedLocation != null) {
+                setTextViewDisplay(cachedLocation)
+            } else {
+                // Fallback to getting a fresh location fix sequentially
+                fetchFreshCurrentLocation()
             }
-            is LocationUiState.Loading -> {
-                locationTextView.text = "Fetching location coordinates..."
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e // Preserve coroutine cancellation behavior
+            Log.e(TAG, "Failed to get last location, trying fresh location", e)
+            fetchFreshCurrentLocation()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun fetchFreshCurrentLocation() {
+        if (!hasLocationPermissions()) {
+            return
+        }
+
+        locationTextView.text = getString(R.string.fetching)
+
+        val locationRequest = CurrentLocationRequest.Builder()
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            .build()
+
+        cancellationTokenSource = CancellationTokenSource()
+
+        try {
+            // Uses .await() to pause execution line-by-line until Play Services responds
+            val freshLocation = fusedLocationClient.getCurrentLocation(
+                locationRequest,
+                cancellationTokenSource!!.token
+            ).await()
+
+            if (freshLocation != null) {
+                setTextViewDisplay(freshLocation)
+            } else {
+                locationTextView.text = getString(R.string.fetch_location_error)
             }
-            is LocationUiState.Success -> {
-                setTextViewDisplay(state.location)
+        } catch (e: Exception) {
+            if (e is CancellationException) {
+                throw e
             }
-            is LocationUiState.Error -> {
-                locationTextView.text = state.errorMessage
-            }
+
+            Log.e(TAG, "Failed to get fresh current location", e)
+            locationTextView.text = getString(R.string.fetch_location_error)
         }
     }
 
     private fun setTextViewDisplay(location: Location) {
-        val text = getString(
-            R.string.location_details,
-            location.latitude.toString(),
-            location.longitude.toString(),
-            location.accuracy.toString()
-        )
+        val latitude = location.latitude.toString()
+        val longitude = location.longitude.toString()
+        val accuracy = location.accuracy.toString()
+        val text = getString(R.string.location_details, latitude, longitude, accuracy)
         locationTextView.text = text
     }
 
     private fun showToast(text: String) {
         Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Cancel the location hardware request when the activity is destroyed
+        cancellationTokenSource?.cancel()
     }
 
     companion object {

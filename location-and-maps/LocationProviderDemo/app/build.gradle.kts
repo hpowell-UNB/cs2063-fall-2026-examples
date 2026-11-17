@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace = "mobiledev.unb.ca.locationdemo"
+    namespace = "mobiledev.unb.ca.locationproviderdemo"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "mobiledev.unb.ca.locationdemo"
+        applicationId = "mobiledev.unb.ca.locationproviderdemo"
         minSdk = 27
         targetSdk = 37
         versionCode = 1

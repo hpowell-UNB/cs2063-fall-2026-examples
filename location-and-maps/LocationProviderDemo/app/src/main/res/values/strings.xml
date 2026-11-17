@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Location Demo</string>
+    <string name="app_name">Location Provider Demo</string>
     <string name="get_location">Get Location</string>
     <string name="fetch_location_error">Unable to fetch the location</string>
     <string name="location_details">Latitude: %1$s\n\nLongitude: %2$s\n\nAccuracy: %3$s</string>
